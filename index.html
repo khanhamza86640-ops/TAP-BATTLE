@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAP BATTLE</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#080b14;color:white;
+ font-family:Arial;text-align:center;
+ padding:25px 18px;
+}
+h1{color:#39a9ff;font-size:32px}
+p{color:#aab4c8}
+.card{
+ background:#151d30;padding:25px;
+ border-radius:22px;margin-top:25px;
+}
+button{
+ width:100%;padding:17px;margin-top:15px;
+ border:0;border-radius:14px;
+ background:#168cff;color:white;
+ font-size:18px;font-weight:bold;
+}
+.tap{
+ height:180px;border-radius:50%;
+ width:180px;font-size:30px;
+ background:#087cff;
+ margin:25px auto;
+ display:block;
+ box-shadow:0 0 35px #087cff66;
+}
+.score{font-size:45px;font-weight:bold}
+input{
+ width:100%;padding:16px;border-radius:12px;
+ border:1px solid #39445b;background:#101827;
+ color:white;font-size:17px;margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<h1>⚡ TAP BATTLE</h1>
+<p>Challenge your friends!</p>
+
+<div class="card">
+<h2>30 SECOND CHALLENGE</h2>
+<div class="score" id="score">0</div>
+<p id="timer">30 Seconds</p>
+<button onclick="startGame()">START GAME</button>
+<button class="tap" onclick="tap()">TAP!</button>
+<h2 id="result">Ready?</h2>
+</div>
+
+<div class="card">
+<h2>👥 PLAY WITH FRIENDS</h2>
+<button onclick="alert('Online multiplayer coming soon!')">
+CREATE ROOM
+</button>
+<input id="room" placeholder="Enter Room Code">
+<button onclick="alert('Online multiplayer coming soon!')">
+JOIN ROOM
+</button>
+</div>
+
+<script>
+let score=0,time=30,playing=false,clock;
+
+function startGame(){
+ clearInterval(clock);
+ score=0;time=30;playing=true;
+ document.getElementById("score").innerText=score;
+ document.getElementById("timer").innerText="30 Seconds";
+ document.getElementById("result").innerText="GO!";
+ clock=setInterval(()=>{
+ time--;
+ document.getElementById("timer").innerText=time+" Seconds";
+ if(time<=0){
+  clearInterval(clock);
+  playing=false;
+  document.getElementById("result").innerText=
+  "Your Score: "+score+" 🏆";
+ }
+ },1000);
+}
+
+function tap(){
+ if(!playing)return;
+ score++;
+ document.getElementById("score").innerText=score;
+}
+</script>
+</body>
+</html>
