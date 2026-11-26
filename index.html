@@ -1,95 +1,1213 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07070d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>TAP BATTLE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!--
+=====================================================================
+ FIREBASE SETUP (one time)
+ 1. Firebase Console -> Authentication -> Sign-in method -> enable Email/Password.
+ 2. Authentication -> Settings -> Authorized domains -> add  <your-username>.github.io
+ 3. Realtime Database -> create database -> Rules tab -> paste:
+
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('host').val() === auth.uid)",
+        "guest": {
+          ".write": "auth != null && (!data.exists() || data.val() === auth.uid)"
+        },
+        "guestName": {
+          ".write": "auth != null && newData.parent().child('guest').val() === auth.uid"
+        },
+        "scores": {
+          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+        },
+        "presence": {
+          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+        }
+      }
+    }
+  }
+}
+
+ 4. Replace the firebaseConfig values below with your own
+    (Project settings -> Your apps -> Web app -> SDK config).
+=====================================================================
+-->
+
 <style>
-*{box-sizing:border-box}
-body{
- margin:0;background:#080b14;color:white;
- font-family:Arial;text-align:center;
- padding:25px 18px;
-}
-h1{color:#39a9ff;font-size:32px}
-p{color:#aab4c8}
-.card{
- background:#151d30;padding:25px;
- border-radius:22px;margin-top:25px;
-}
-button{
- width:100%;padding:17px;margin-top:15px;
- border:0;border-radius:14px;
- background:#168cff;color:white;
- font-size:18px;font-weight:bold;
-}
-.tap{
- height:180px;border-radius:50%;
- width:180px;font-size:30px;
- background:#087cff;
- margin:25px auto;
- display:block;
- box-shadow:0 0 35px #087cff66;
-}
-.score{font-size:45px;font-weight:bold}
-input{
- width:100%;padding:16px;border-radius:12px;
- border:1px solid #39445b;background:#101827;
- color:white;font-size:17px;margin-top:10px;
-}
+  :root {
+    --bg: #07070d;
+    --bg2: #0e0e1a;
+    --card: rgba(255,255,255,0.04);
+    --card-b: rgba(255,255,255,0.09);
+    --text: #eef0ff;
+    --muted: #8b8fae;
+    --cyan: #19e3ff;
+    --pink: #ff2d95;
+    --violet: #8a5cff;
+    --green: #2dff9a;
+    --gold: #ffc83d;
+    --danger: #ff4d6d;
+    --font-d: 'Orbitron', 'Segoe UI', system-ui, sans-serif;
+    --font-b: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-b);
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background:
+      radial-gradient(900px 500px at 10% -10%, rgba(138,92,255,0.20), transparent 60%),
+      radial-gradient(800px 500px at 110% 10%, rgba(25,227,255,0.14), transparent 60%),
+      radial-gradient(700px 500px at 50% 120%, rgba(255,45,149,0.16), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    overflow: hidden;
+  }
+  #app {
+    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    max-width: 520px;
+    margin: 0 auto;
+    position: relative;
+    padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  }
+  .screen {
+    position: absolute; inset: 0;
+    padding: calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 14px);
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen.active { display: flex; animation: fadeIn .28s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px);} to { opacity: 1; transform: none; } }
+
+  /* Typography */
+  .logo {
+    font-family: var(--font-d);
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-align: center;
+    line-height: 1;
+    background: linear-gradient(90deg, var(--cyan), var(--violet) 50%, var(--pink));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 18px rgba(138,92,255,0.45));
+  }
+  .logo.big { font-size: clamp(34px, 11vw, 52px); }
+  .logo.small { font-size: 22px; }
+  .tagline { text-align: center; color: var(--muted); font-size: 14px; margin-top: 10px; }
+  h2 { font-family: var(--font-d); font-size: 16px; letter-spacing: 2px; color: var(--muted); font-weight: 700; }
+
+  /* Cards & inputs */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-b);
+    border-radius: 20px;
+    padding: 18px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .spacer { flex: 1; min-height: 12px; }
+  label.field { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; letter-spacing: .5px; text-transform: uppercase; }
+  input {
+    width: 100%;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--card-b);
+    border-radius: 14px;
+    padding: 15px 16px;
+    font-size: 16px;
+    color: var(--text);
+    font-family: var(--font-b);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(25,227,255,0.15); }
+  input.code-input {
+    font-family: var(--font-d);
+    font-weight: 700;
+    letter-spacing: 8px;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 22px;
+  }
+
+  .btn {
+    appearance: none; border: 0; cursor: pointer;
+    width: 100%;
+    padding: 16px 18px;
+    border-radius: 16px;
+    font-family: var(--font-d);
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 2px;
+    color: #06060c;
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    box-shadow: 0 8px 28px rgba(25,227,255,0.25);
+    transition: transform .1s ease, filter .2s, opacity .2s;
+    -webkit-user-select: none; user-select: none;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: .45; filter: grayscale(.5); cursor: not-allowed; box-shadow: none; }
+  .btn.pink { background: linear-gradient(135deg, var(--pink), var(--violet)); color: #fff; box-shadow: 0 8px 28px rgba(255,45,149,0.28); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--card-b); box-shadow: none; }
+  .btn.green { background: linear-gradient(135deg, var(--green), var(--cyan)); box-shadow: 0 8px 28px rgba(45,255,154,0.25); }
+  .link-btn { background: none; border: 0; color: var(--cyan); font-size: 14px; cursor: pointer; padding: 8px; font-family: var(--font-b); }
+  .row { display: flex; gap: 10px; align-items: center; }
+
+  /* Auth tabs */
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: rgba(0,0,0,0.35); border-radius: 14px; padding: 4px; border: 1px solid var(--card-b); }
+  .tab { padding: 12px; text-align: center; border-radius: 10px; font-weight: 600; font-size: 14px; color: var(--muted); cursor: pointer; border: 0; background: transparent; font-family: var(--font-b); }
+  .tab.active { background: linear-gradient(135deg, rgba(25,227,255,0.2), rgba(138,92,255,0.25)); color: var(--text); }
+  .msg-err { color: var(--danger); font-size: 13px; min-height: 18px; text-align: center; }
+  .msg-ok { color: var(--green); font-size: 13px; text-align: center; }
+
+  /* Header bar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+  .user-chip { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--card-b); padding: 6px 12px 6px 6px; border-radius: 999px; max-width: 58%; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--cyan), var(--pink)); display: grid; place-items: center; font-family: var(--font-d); font-weight: 900; font-size: 13px; color: #06060c; flex-shrink: 0; }
+  .user-chip span.name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Lobby */
+  .code-box { text-align: center; padding: 22px 12px; }
+  .code-label { font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .code-value {
+    font-family: var(--font-d); font-weight: 900; font-size: clamp(36px, 13vw, 56px);
+    letter-spacing: 10px; margin: 10px 0 14px; padding-left: 10px;
+    background: linear-gradient(90deg, var(--cyan), var(--pink));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .players { display: grid; gap: 10px; }
+  .player-slot { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 16px; background: var(--card); border: 1px solid var(--card-b); }
+  .player-slot.empty { border-style: dashed; opacity: .7; }
+  .player-slot .pname { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .player-slot .ptag { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #444; flex-shrink: 0; }
+  .dot.on { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .pulse { animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+  .hint { text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* Game */
+  #screen-game { padding-bottom: calc(env(safe-area-inset-bottom) + 12px); overflow: hidden; }
+  .scoreboard { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+  .sb-player { text-align: center; min-width: 0; }
+  .sb-name { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .5px; }
+  .sb-score { font-family: var(--font-d); font-weight: 900; font-size: clamp(40px, 14vw, 64px); line-height: 1.1; transition: transform .08s; }
+  .sb-score.me { color: var(--cyan); text-shadow: 0 0 24px rgba(25,227,255,0.5); }
+  .sb-score.opp { color: var(--pink); text-shadow: 0 0 24px rgba(255,45,149,0.5); }
+  .sb-score.bump { transform: scale(1.12); }
+  .timer-wrap { position: relative; width: 92px; height: 92px; }
+  .timer-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .timer-wrap .track { stroke: rgba(255,255,255,0.08); }
+  .timer-wrap .prog { stroke: url(#tg); stroke-linecap: round; transition: stroke-dashoffset .1s linear; }
+  .timer-num { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-d); font-weight: 900; font-size: 30px; }
+  .timer-num.low { color: var(--danger); animation: pulse .6s infinite; }
+  .tug { height: 12px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; margin: 18px 0 6px; border: 1px solid var(--card-b); display: flex; }
+  .tug .a { background: linear-gradient(90deg, var(--cyan), var(--violet)); width: 50%; transition: width .15s ease; }
+  .tug .b { background: linear-gradient(90deg, var(--violet), var(--pink)); flex: 1; }
+  .tug-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+  .tap-zone { flex: 1; display: grid; place-items: center; min-height: 0; padding: 10px 0; }
+  .tap-btn {
+    position: relative;
+    width: min(78vw, 46dvh, 340px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 0;
+    outline: none;
+    cursor: pointer;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    background: radial-gradient(circle at 35% 30%, #5cf0ff 0%, #19a8ff 28%, #6d3dff 62%, #2a1370 100%);
+    box-shadow: 0 0 0 10px rgba(25,227,255,0.07), 0 0 0 22px rgba(138,92,255,0.06), 0 20px 70px rgba(109,61,255,0.55), inset 0 -14px 40px rgba(0,0,0,0.4), inset 0 10px 30px rgba(255,255,255,0.25);
+    color: #fff;
+    font-family: var(--font-d); font-weight: 900; font-size: clamp(26px, 8vw, 40px); letter-spacing: 4px;
+    transition: transform .06s ease, box-shadow .06s ease, filter .2s;
+    overflow: hidden;
+  }
+  .tap-btn.pressed { transform: scale(0.94); box-shadow: 0 0 0 14px rgba(25,227,255,0.12), 0 0 0 30px rgba(138,92,255,0.08), 0 10px 40px rgba(109,61,255,0.6), inset 0 -8px 30px rgba(0,0,0,0.4), inset 0 6px 24px rgba(255,255,255,0.3); }
+  .tap-btn:disabled { filter: grayscale(.8) brightness(.55); cursor: default; }
+  .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.45); transform: scale(0); animation: ripple .5s ease-out forwards; pointer-events: none; }
+  @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+  .floaty { position: fixed; font-family: var(--font-d); font-weight: 900; font-size: 22px; color: var(--cyan); pointer-events: none; animation: floatUp .7s ease-out forwards; text-shadow: 0 0 12px rgba(25,227,255,.8); z-index: 5; }
+  @keyframes floatUp { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -70px); } }
+  .overlay { position: absolute; inset: 0; background: rgba(7,7,13,0.82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: none; place-items: center; z-index: 10; }
+  .overlay.show { display: grid; }
+  .count-num { font-family: var(--font-d); font-weight: 900; font-size: 140px; background: linear-gradient(135deg, var(--cyan), var(--pink)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: pop .9s ease-out infinite; }
+  @keyframes pop { 0% { transform: scale(1.5); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(0.85); opacity: .9; } }
+  .count-sub { text-align: center; color: var(--muted); letter-spacing: 3px; font-size: 13px; margin-top: 8px; }
+
+  /* Result */
+  .result-title { font-family: var(--font-d); font-weight: 900; font-size: clamp(34px, 11vw, 52px); text-align: center; letter-spacing: 3px; margin: 14px 0 4px; }
+  .result-title.win { color: var(--gold); text-shadow: 0 0 30px rgba(255,200,61,0.6); }
+  .result-title.lose { color: var(--pink); text-shadow: 0 0 30px rgba(255,45,149,0.5); }
+  .result-title.draw { color: var(--cyan); text-shadow: 0 0 30px rgba(25,227,255,0.5); }
+  .result-sub { text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .res-card { text-align: center; padding: 18px 10px; border-radius: 18px; background: var(--card); border: 1px solid var(--card-b); }
+  .res-card.winner { border-color: var(--gold); box-shadow: 0 0 30px rgba(255,200,61,0.2); }
+  .res-card .n { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .res-card .s { font-family: var(--font-d); font-weight: 900; font-size: 44px; margin: 6px 0 2px; }
+  .res-card .r { font-size: 12px; color: var(--muted); }
+  .crown { font-size: 18px; height: 22px; }
+
+  /* Toast */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px);
+    transform: translateX(-50%) translateY(30px);
+    background: rgba(20,20,36,0.96); border: 1px solid var(--card-b);
+    padding: 12px 18px; border-radius: 14px; font-size: 14px; max-width: 88vw; text-align: center;
+    opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 100;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Config banner */
+  #cfg-banner { display: none; background: rgba(255,77,109,0.12); border: 1px solid var(--danger); color: #ffb3c0; padding: 12px; border-radius: 14px; font-size: 13px; margin-bottom: 14px; }
+
+  @media (max-height: 640px) {
+    .timer-wrap { width: 72px; height: 72px; }
+    .timer-num { font-size: 22px; }
+    .tug { margin: 10px 0 4px; }
+  }
 </style>
 </head>
 <body>
+<div id="app">
 
-<h1>⚡ TAP BATTLE</h1>
-<p>Challenge your friends!</p>
+  <!-- AUTH -->
+  <section class="screen active" id="screen-auth">
+    <div style="height:6vh"></div>
+    <div class="logo big">TAP<br>BATTLE</div>
+    <p class="tagline">Real-time 1v1 tapping duel. 30 seconds. One winner.</p>
+    <div style="height:26px"></div>
+    <div id="cfg-banner">Firebase is not configured yet. Open <b>index.html</b> and replace the <b>firebaseConfig</b> values with your project's keys.</div>
+    <div class="card stack">
+      <div class="tabs">
+        <button class="tab active" id="tab-login" type="button">Log In</button>
+        <button class="tab" id="tab-signup" type="button">Sign Up</button>
+      </div>
+      <form id="auth-form" class="stack" autocomplete="on" novalidate>
+        <div id="name-wrap" style="display:none">
+          <label class="field" for="auth-name">Player name</label>
+          <input id="auth-name" type="text" maxlength="14" placeholder="e.g. TapMaster" autocomplete="nickname">
+        </div>
+        <div>
+          <label class="field" for="auth-email">Email</label>
+          <input id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
+        </div>
+        <div>
+          <label class="field" for="auth-pass">Password</label>
+          <input id="auth-pass" type="password" placeholder="At least 6 characters" autocomplete="current-password">
+        </div>
+        <div class="msg-err" id="auth-msg"></div>
+        <button class="btn" id="auth-submit" type="submit">LOG IN</button>
+        <button class="link-btn" id="forgot-btn" type="button">Forgot password?</button>
+      </form>
+    </div>
+  </section>
 
-<div class="card">
-<h2>30 SECOND CHALLENGE</h2>
-<div class="score" id="score">0</div>
-<p id="timer">30 Seconds</p>
-<button onclick="startGame()">START GAME</button>
-<button class="tap" onclick="tap()">TAP!</button>
-<h2 id="result">Ready?</h2>
+  <!-- HOME -->
+  <section class="screen" id="screen-home">
+    <div class="topbar">
+      <div class="logo small">TAP BATTLE</div>
+      <div class="user-chip">
+        <div class="avatar" id="home-avatar">T</div>
+        <span class="name" id="home-name">Player</span>
+      </div>
+    </div>
+
+    <div class="card stack">
+      <h2>CREATE A ROOM</h2>
+      <p class="hint" style="text-align:left">Get a code and share it with a friend.</p>
+      <button class="btn" id="btn-create" type="button">CREATE ROOM</button>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="card stack">
+      <h2>JOIN A ROOM</h2>
+      <input id="join-code" class="code-input" type="text" maxlength="5" placeholder="•••••" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <button class="btn pink" id="btn-join" type="button">JOIN ROOM</button>
+      <div class="msg-err" id="join-msg"></div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn ghost" id="btn-logout" type="button">LOG OUT</button>
+  </section>
+
+  <!-- LOBBY -->
+  <section class="screen" id="screen-lobby">
+    <div class="topbar">
+      <div class="logo small">LOBBY</div>
+      <span class="ptag" id="lobby-role" style="color:var(--muted);font-size:12px;letter-spacing:1px"></span>
+    </div>
+
+    <div class="card code-box">
+      <div class="code-label">Room code</div>
+      <div class="code-value" id="lobby-code">-----</div>
+      <div class="row">
+        <button class="btn ghost" id="btn-copy" type="button" style="padding:12px">COPY</button>
+        <button class="btn ghost" id="btn-share" type="button" style="padding:12px">SHARE</button>
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="players">
+      <div class="player-slot">
+        <div class="avatar" id="slot1-av">?</div>
+        <div style="flex:1;min-width:0">
+          <div class="pname" id="slot1-name">-</div>
+          <div class="ptag">Host</div>
+        </div>
+        <div class="dot" id="slot1-dot"></div>
+      </div>
+      <div class="player-slot empty" id="slot2">
+        <div class="avatar" id="slot2-av" style="background:#2a2a40;color:var(--muted)">?</div>
+        <div style="flex:1;min-width:0">
+          <div class="pname" id="slot2-name">Waiting for opponent…</div>
+          <div class="ptag">Challenger</div>
+        </div>
+        <div class="dot" id="slot2-dot"></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <p class="hint" id="lobby-hint" style="margin-bottom:12px"></p>
+    <div class="stack">
+      <button class="btn green" id="btn-start" type="button" disabled>START MATCH</button>
+      <button class="btn ghost" id="btn-leave" type="button">LEAVE ROOM</button>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="screen-game">
+    <div class="scoreboard">
+      <div class="sb-player">
+        <div class="sb-name" id="g-me-name">You</div>
+        <div class="sb-score me" id="g-me-score">0</div>
+      </div>
+      <div class="timer-wrap">
+        <svg viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="tg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#19e3ff"/>
+              <stop offset="100%" stop-color="#ff2d95"/>
+            </linearGradient>
+          </defs>
+          <circle class="track" cx="50" cy="50" r="44" fill="none" stroke-width="7"/>
+          <circle class="prog" id="g-ring" cx="50" cy="50" r="44" fill="none" stroke-width="7" stroke-dasharray="276.46" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-num" id="g-timer">30</div>
+      </div>
+      <div class="sb-player">
+        <div class="sb-name" id="g-opp-name">Opponent</div>
+        <div class="sb-score opp" id="g-opp-score">0</div>
+      </div>
+    </div>
+
+    <div class="tug"><div class="a" id="g-tug"></div><div class="b"></div></div>
+    <div class="tug-labels"><span>YOU</span><span id="g-opp-status">OPPONENT</span></div>
+
+    <div class="tap-zone">
+      <button class="tap-btn" id="tap-btn" type="button" disabled>TAP!</button>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div>
+        <div class="count-num" id="count-num" style="text-align:center">3</div>
+        <div class="count-sub">GET READY</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULT -->
+  <section class="screen" id="screen-result">
+    <div style="height:3vh"></div>
+    <div class="result-title" id="res-title">...</div>
+    <div class="result-sub" id="res-sub">Counting final taps…</div>
+
+    <div class="res-grid">
+      <div class="res-card" id="res-me-card">
+        <div class="crown" id="res-me-crown"></div>
+        <div class="n" id="res-me-name">You</div>
+        <div class="s" id="res-me-score" style="color:var(--cyan)">0</div>
+        <div class="r" id="res-me-rate">0 taps/s</div>
+      </div>
+      <div class="res-card" id="res-opp-card">
+        <div class="crown" id="res-opp-crown"></div>
+        <div class="n" id="res-opp-name">Opponent</div>
+        <div class="s" id="res-opp-score" style="color:var(--pink)">0</div>
+        <div class="r" id="res-opp-rate">0 taps/s</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <p class="hint" id="res-hint" style="margin-bottom:12px"></p>
+    <div class="stack">
+      <button class="btn green" id="btn-rematch" type="button">REMATCH</button>
+      <button class="btn ghost" id="btn-res-leave" type="button">LEAVE ROOM</button>
+    </div>
+  </section>
+
 </div>
 
-<div class="card">
-<h2>👥 PLAY WITH FRIENDS</h2>
-<button onclick="alert('Online multiplayer coming soon!')">
-CREATE ROOM
-</button>
-<input id="room" placeholder="Enter Room Code">
-<button onclick="alert('Online multiplayer coming soon!')">
-JOIN ROOM
-</button>
-</div>
+<div id="toast"></div>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
-let score=0,time=30,playing=false,clock;
+(function () {
+  'use strict';
 
-function startGame(){
- clearInterval(clock);
- score=0;time=30;playing=true;
- document.getElementById("score").innerText=score;
- document.getElementById("timer").innerText="30 Seconds";
- document.getElementById("result").innerText="GO!";
- clock=setInterval(()=>{
- time--;
- document.getElementById("timer").innerText=time+" Seconds";
- if(time<=0){
-  clearInterval(clock);
-  playing=false;
-  document.getElementById("result").innerText=
-  "Your Score: "+score+" 🏆";
- }
- },1000);
-}
+  /* ================================================================
+     1. FIREBASE CONFIG  — REPLACE WITH YOUR OWN VALUES
+     ================================================================ */
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7dTYAWZhbWzSSw83Na8lOjNKFCBf4RPQ",
+    authDomain: "tap-battle-9d3d6.firebaseapp.com",
+    databaseURL: "https://tap-battle-9d3d6-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "tap-battle-9d3d6",
+    storageBucket: "tap-battle-9d3d6.firebasestorage.app",
+    messagingSenderId: "1074585762624",
+    appId: "1:1074585762624:web:5ab1f775128f759b3618a5"
+  };
 
-function tap(){
- if(!playing)return;
- score++;
- document.getElementById("score").innerText=score;
-}
+  const MATCH_MS = 30000;      // match length
+  const COUNTDOWN_MS = 4000;   // lead time from "start" to first tap
+  const FLUSH_MS = 80;         // throttle for score writes
+  const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  const configured = !String(firebaseConfig.apiKey).startsWith('YOUR_');
+  if (!configured) document.getElementById('cfg-banner').style.display = 'block';
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  /* ================================================================
+     2. HELPERS
+     ================================================================ */
+  const $ = (id) => document.getElementById(id);
+  let serverOffset = 0;
+  db.ref('.info/serverTimeOffset').on('value', (s) => { serverOffset = s.val() || 0; });
+  const serverNow = () => Date.now() + serverOffset;
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+    $(id).classList.add('active');
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+
+  function vibrate(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {} }
+
+  function genCode() {
+    let c = '';
+    for (let i = 0; i < 5; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    return c;
+  }
+
+  function friendlyAuthError(err) {
+    const map = {
+      'auth/invalid-email': 'That email address looks invalid.',
+      'auth/user-not-found': 'No account found with that email.',
+      'auth/wrong-password': 'Wrong password. Try again.',
+      'auth/invalid-credential': 'Wrong email or password.',
+      'auth/invalid-login-credentials': 'Wrong email or password.',
+      'auth/email-already-in-use': 'This email is already registered. Try logging in.',
+      'auth/weak-password': 'Password must be at least 6 characters.',
+      'auth/too-many-requests': 'Too many attempts. Please wait a moment.',
+      'auth/network-request-failed': 'Network error. Check your connection.',
+      'auth/operation-not-allowed': 'Email/Password sign-in is not enabled in Firebase.',
+      'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'Invalid Firebase API key in index.html.',
+      'auth/invalid-api-key': 'Invalid Firebase API key in index.html.',
+      'auth/unauthorized-domain': 'This domain is not authorized in Firebase Auth settings.'
+    };
+    return map[err && err.code] || (err && err.message) || 'Something went wrong.';
+  }
+
+  function initial(name) { return (name || '?').trim().charAt(0).toUpperCase() || '?'; }
+
+  /* ================================================================
+     3. AUTH UI
+     ================================================================ */
+  let mode = 'login';
+  function setMode(m) {
+    mode = m;
+    $('tab-login').classList.toggle('active', m === 'login');
+    $('tab-signup').classList.toggle('active', m === 'signup');
+    $('name-wrap').style.display = m === 'signup' ? 'block' : 'none';
+    $('auth-submit').textContent = m === 'signup' ? 'CREATE ACCOUNT' : 'LOG IN';
+    $('auth-pass').setAttribute('autocomplete', m === 'signup' ? 'new-password' : 'current-password');
+    $('forgot-btn').style.display = m === 'login' ? 'block' : 'none';
+    $('auth-msg').textContent = '';
+    $('auth-msg').className = 'msg-err';
+  }
+  $('tab-login').addEventListener('click', () => setMode('login'));
+  $('tab-signup').addEventListener('click', () => setMode('signup'));
+
+  $('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = $('auth-msg');
+    msg.className = 'msg-err';
+    msg.textContent = '';
+    const email = $('auth-email').value.trim();
+    const pass = $('auth-pass').value;
+    const name = $('auth-name').value.trim();
+    if (!email || !pass) { msg.textContent = 'Enter your email and password.'; return; }
+    if (mode === 'signup' && name.length < 2) { msg.textContent = 'Pick a player name (2–14 characters).'; return; }
+    const btn = $('auth-submit');
+    btn.disabled = true;
+    try {
+      if (mode === 'signup') {
+        const cred = await auth.createUserWithEmailAndPassword(email, pass);
+        await cred.user.updateProfile({ displayName: name });
+        await cred.user.reload();
+        // onAuthStateChanged already fired; refresh the name shown
+        currentUser = auth.currentUser;
+        refreshUserUI();
+      } else {
+        await auth.signInWithEmailAndPassword(email, pass);
+      }
+    } catch (err) {
+      msg.textContent = friendlyAuthError(err);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('forgot-btn').addEventListener('click', async () => {
+    const msg = $('auth-msg');
+    const email = $('auth-email').value.trim();
+    if (!email) { msg.className = 'msg-err'; msg.textContent = 'Type your email above first.'; return; }
+    try {
+      await auth.sendPasswordResetEmail(email);
+      msg.className = 'msg-ok';
+      msg.textContent = 'Password reset email sent.';
+    } catch (err) {
+      msg.className = 'msg-err';
+      msg.textContent = friendlyAuthError(err);
+    }
+  });
+
+  /* ================================================================
+     4. STATE
+     ================================================================ */
+  let currentUser = null;
+  let roomCode = null;
+  let roomRef = null;
+  let isHost = false;
+  let roomData = null;
+  let roomListener = null;
+  let leaving = false;
+
+  let phase = 'none';          // none | lobby | game | result
+  let activeStartAt = null;
+  let matchDuration = MATCH_MS;
+  let myScore = 0;
+  let tickTimer = null;
+  let flushTimer = null;
+  let resultReady = false;
+  let resultTimer = null;
+  let lastOppShown = 0;
+
+  const myName = () => (currentUser && (currentUser.displayName || (currentUser.email || 'Player').split('@')[0])) || 'Player';
+  const oppUid = () => (!roomData ? null : (isHost ? roomData.guest : roomData.host));
+  const oppName = () => (!roomData ? 'Opponent' : (isHost ? roomData.guestName : roomData.hostName)) || 'Opponent';
+
+  function refreshUserUI() {
+    $('home-name').textContent = myName();
+    $('home-avatar').textContent = initial(myName());
+  }
+
+  /* ================================================================
+     5. AUTH STATE
+     ================================================================ */
+  auth.onAuthStateChanged((user) => {
+    currentUser = user;
+    if (user) {
+      refreshUserUI();
+      if (!roomCode) { phase = 'none'; showScreen('screen-home'); }
+    } else {
+      cleanupRoomLocal();
+      showScreen('screen-auth');
+    }
+  });
+
+  $('btn-logout').addEventListener('click', async () => {
+    try { await auth.signOut(); } catch (e) { toast('Could not log out.'); }
+  });
+
+  /* ================================================================
+     6. CREATE / JOIN ROOM
+     ================================================================ */
+  $('join-code').addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    $('join-msg').textContent = '';
+  });
+
+  $('btn-create').addEventListener('click', async () => {
+    if (!currentUser) return;
+    const btn = $('btn-create');
+    btn.disabled = true;
+    btn.textContent = 'CREATING…';
+    try {
+      let created = null;
+      for (let i = 0; i < 8 && !created; i++) {
+        const code = genCode();
+        const res = await db.ref('rooms/' + code).transaction((cur) => {
+          if (cur === null) {
+            return {
+              host: currentUser.uid,
+              hostName: myName(),
+              status: 'lobby',
+              duration: MATCH_MS,
+              createdAt: firebase.database.ServerValue.TIMESTAMP
+            };
+          }
+          return undefined; // exists -> abort, try another code
+        });
+        if (res.committed) created = code;
+      }
+      if (!created) throw new Error('Could not create a unique room. Try again.');
+      enterRoom(created, true);
+    } catch (err) {
+      toast(err.message || 'Could not create room.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'CREATE ROOM';
+    }
+  });
+
+  $('btn-join').addEventListener('click', joinRoom);
+  $('join-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
+
+  async function joinRoom() {
+    if (!currentUser) return;
+    const code = $('join-code').value.trim().toUpperCase();
+    const msg = $('join-msg');
+    msg.textContent = '';
+    if (code.length !== 5) { msg.textContent = 'Enter the 5-character room code.'; return; }
+    const btn = $('btn-join');
+    btn.disabled = true;
+    btn.textContent = 'JOINING…';
+    try {
+      const ref = db.ref('rooms/' + code);
+      const snap = await ref.once('value');
+      if (!snap.exists()) { msg.textContent = 'Room not found. Check the code.'; return; }
+      const v = snap.val();
+      if (v.host === currentUser.uid) { enterRoom(code, true); return; }
+      if (v.guest === currentUser.uid) { enterRoom(code, false); return; }
+      if (v.guest) { msg.textContent = 'This room is already full.'; return; }
+      if (v.status === 'playing') { msg.textContent = 'This match has already started.'; return; }
+
+      const res = await ref.child('guest').transaction((cur) => (cur === null ? currentUser.uid : undefined));
+      if (!res.committed) { msg.textContent = 'This room is already full.'; return; }
+      await ref.child('guestName').set(myName());
+      enterRoom(code, false);
+    } catch (err) {
+      msg.textContent = err && err.code === 'PERMISSION_DENIED'
+        ? 'Permission denied. Check your database rules.'
+        : (err.message || 'Could not join room.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'JOIN ROOM';
+    }
+  }
+
+  function enterRoom(code, host) {
+    leaving = false;
+    roomCode = code;
+    isHost = host;
+    roomRef = db.ref('rooms/' + code);
+    roomData = null;
+    phase = 'none';
+    activeStartAt = null;
+    myScore = 0;
+
+    // presence
+    const pRef = roomRef.child('presence/' + currentUser.uid);
+    pRef.set(true).catch(() => {});
+    pRef.onDisconnect().remove();
+
+    roomListener = roomRef.on('value', onRoomValue, (err) => {
+      toast('Connection error: ' + (err.message || err.code));
+    });
+    $('lobby-code').textContent = code;
+    $('lobby-role').textContent = host ? 'YOU ARE HOST' : 'YOU ARE GUEST';
+    enterLobbyUI();
+  }
+
+  /* ================================================================
+     7. ROOM LISTENER
+     ================================================================ */
+  function onRoomValue(snap) {
+    if (leaving) return;
+    const v = snap.val();
+    if (!v) {
+      toast('Room was closed.');
+      cleanupRoomLocal();
+      showScreen('screen-home');
+      return;
+    }
+    roomData = v;
+    matchDuration = v.duration || MATCH_MS;
+
+    // Host: opponent vanished mid-match -> back to lobby
+    if (isHost && !v.guest && v.status === 'playing') {
+      roomRef.update({ status: 'lobby', startAt: null, scores: null }).catch(() => {});
+      stopMatchLoop();
+      phase = 'none';
+      activeStartAt = null;
+      toast('Opponent left the room.');
+      enterLobbyUI();
+      return;
+    }
+
+    if (v.status === 'playing' && v.startAt && v.startAt !== activeStartAt) {
+      startMatch(v.startAt);
+    } else if (v.status === 'lobby' && phase !== 'lobby') {
+      stopMatchLoop();
+      activeStartAt = null;
+      enterLobbyUI();
+    }
+
+    renderLobby();
+    renderLiveScores();
+    if (phase === 'result') renderResult();
+  }
+
+  /* ================================================================
+     8. LOBBY
+     ================================================================ */
+  function enterLobbyUI() {
+    phase = 'lobby';
+    resultReady = false;
+    showScreen('screen-lobby');
+    renderLobby();
+  }
+
+  function renderLobby() {
+    if (!roomData || phase !== 'lobby') return;
+    const v = roomData;
+    $('slot1-name').textContent = v.hostName || 'Host';
+    $('slot1-av').textContent = initial(v.hostName);
+    const hostOnline = !!(v.presence && v.presence[v.host]);
+    $('slot1-dot').className = 'dot' + (hostOnline ? ' on' : '');
+
+    const slot2 = $('slot2');
+    if (v.guest) {
+      slot2.classList.remove('empty');
+      $('slot2-name').textContent = v.guestName || 'Challenger';
+      $('slot2-av').textContent = initial(v.guestName);
+      $('slot2-av').style.cssText = '';
+      const gOnline = !!(v.presence && v.presence[v.guest]);
+      $('slot2-dot').className = 'dot' + (gOnline ? ' on' : '');
+    } else {
+      slot2.classList.add('empty');
+      $('slot2-name').textContent = 'Waiting for opponent…';
+      $('slot2-av').textContent = '?';
+      $('slot2-av').style.cssText = 'background:#2a2a40;color:var(--muted)';
+      $('slot2-dot').className = 'dot';
+    }
+
+    const startBtn = $('btn-start');
+    const hint = $('lobby-hint');
+    if (isHost) {
+      startBtn.style.display = 'block';
+      startBtn.disabled = !v.guest;
+      hint.textContent = v.guest ? 'Opponent is in. Start when ready!' : 'Share the room code with your friend.';
+      hint.classList.toggle('pulse', !v.guest);
+    } else {
+      startBtn.style.display = 'none';
+      hint.textContent = 'Waiting for the host to start the match…';
+      hint.classList.add('pulse');
+    }
+  }
+
+  $('btn-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      toast('Room code copied');
+    } catch (e) {
+      toast('Code: ' + roomCode);
+    }
+  });
+
+  $('btn-share').addEventListener('click', async () => {
+    const text = 'Join my TAP BATTLE room! Code: ' + roomCode;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'TAP BATTLE', text: text, url: location.href }); } catch (e) {}
+    } else {
+      try { await navigator.clipboard.writeText(text + ' ' + location.href); toast('Invite copied'); }
+      catch (e) { toast(text); }
+    }
+  });
+
+  $('btn-start').addEventListener('click', async () => {
+    if (!isHost || !roomData || !roomData.guest) return;
+    const btn = $('btn-start');
+    btn.disabled = true;
+    try {
+      await roomRef.update({
+        status: 'playing',
+        startAt: serverNow() + COUNTDOWN_MS,
+        duration: MATCH_MS,
+        scores: null
+      });
+    } catch (err) {
+      toast('Could not start the match.');
+      btn.disabled = false;
+    }
+  });
+
+  $('btn-leave').addEventListener('click', leaveRoom);
+  $('btn-res-leave').addEventListener('click', leaveRoom);
+
+  async function leaveRoom() {
+    if (!roomRef) { showScreen('screen-home'); return; }
+    const ref = roomRef;
+    const host = isHost;
+    const uid = currentUser && currentUser.uid;
+    leaving = true;
+    cleanupRoomLocal(true);
+    showScreen('screen-home');
+    try {
+      if (host) {
+        await ref.remove();
+      } else if (uid) {
+        const updates = {};
+        updates['guest'] = null;
+        updates['guestName'] = null;
+        updates['scores/' + uid] = null;
+        updates['presence/' + uid] = null;
+        await ref.update(updates);
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function cleanupRoomLocal(keepRef) {
+    stopMatchLoop();
+    if (roomRef && roomListener) { roomRef.off('value', roomListener); }
+    if (roomRef && currentUser) {
+      try { roomRef.child('presence/' + currentUser.uid).onDisconnect().cancel(); } catch (e) {}
+    }
+    roomListener = null;
+    roomRef = null;
+    roomCode = null;
+    roomData = null;
+    isHost = false;
+    phase = 'none';
+    activeStartAt = null;
+    myScore = 0;
+    resultReady = false;
+    clearTimeout(resultTimer);
+    $('join-code').value = '';
+    $('join-msg').textContent = '';
+    leaving = false;
+  }
+
+  /* ================================================================
+     9. MATCH
+     ================================================================ */
+  const tapBtn = $('tap-btn');
+  const RING_LEN = 276.46;
+
+  function startMatch(startAt) {
+    stopMatchLoop();
+    activeStartAt = startAt;
+    phase = 'game';
+    resultReady = false;
+    myScore = 0;
+    lastOppShown = 0;
+    clearTimeout(resultTimer);
+
+    $('g-me-name').textContent = myName();
+    $('g-opp-name').textContent = oppName();
+    $('g-me-score').textContent = '0';
+    $('g-opp-score').textContent = '0';
+    $('g-tug').style.width = '50%';
+    $('g-timer').textContent = Math.ceil(matchDuration / 1000);
+    $('g-timer').classList.remove('low');
+    $('g-ring').style.strokeDashoffset = 0;
+    tapBtn.disabled = true;
+    tapBtn.textContent = 'TAP!';
+    showScreen('screen-game');
+    $('overlay').classList.add('show');
+
+    // announce a zero score so the opponent sees us immediately
+    if (roomRef && currentUser) roomRef.child('scores/' + currentUser.uid).set(0).catch(() => {});
+
+    tickTimer = setInterval(tick, 50);
+    tick();
+  }
+
+  function tick() {
+    if (phase !== 'game' || !activeStartAt) return;
+    const now = serverNow();
+    const endAt = activeStartAt + matchDuration;
+
+    if (now < activeStartAt) {
+      const left = Math.ceil((activeStartAt - now) / 1000);
+      $('count-num').textContent = left > 3 ? '3' : String(left);
+      $('overlay').classList.add('show');
+      tapBtn.disabled = true;
+      return;
+    }
+
+    if (now < endAt) {
+      $('overlay').classList.remove('show');
+      tapBtn.disabled = false;
+      const remainMs = endAt - now;
+      const secs = Math.ceil(remainMs / 1000);
+      $('g-timer').textContent = secs;
+      $('g-timer').classList.toggle('low', secs <= 5);
+      $('g-ring').style.strokeDashoffset = String(RING_LEN * (1 - remainMs / matchDuration));
+      return;
+    }
+
+    finishMatch();
+  }
+
+  function finishMatch() {
+    stopMatchLoop(true);
+    tapBtn.disabled = true;
+    $('overlay').classList.remove('show');
+    $('g-timer').textContent = '0';
+    $('g-ring').style.strokeDashoffset = RING_LEN;
+    flushScore(true);
+    phase = 'result';
+    resultReady = false;
+    showScreen('screen-result');
+    renderResult();
+    clearTimeout(resultTimer);
+    resultTimer = setTimeout(() => { resultReady = true; renderResult(); }, 1300);
+  }
+
+  function stopMatchLoop(keepScore) {
+    if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+  }
+
+  /* ---- tapping ---- */
+  function flushScore(force) {
+    if (!roomRef || !currentUser) return;
+    if (force) {
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      roomRef.child('scores/' + currentUser.uid).set(myScore).catch(() => {});
+      return;
+    }
+    if (flushTimer) return;
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      if (roomRef && currentUser) roomRef.child('scores/' + currentUser.uid).set(myScore).catch(() => {});
+    }, FLUSH_MS);
+  }
+
+  function handleTap(e) {
+    e.preventDefault();
+    if (phase !== 'game' || !activeStartAt) return;
+    const now = serverNow();
+    if (now < activeStartAt || now >= activeStartAt + matchDuration) return;
+
+    myScore++;
+    const el = $('g-me-score');
+    el.textContent = myScore;
+    el.classList.add('bump');
+    setTimeout(() => el.classList.remove('bump'), 70);
+    updateTug();
+    flushScore(false);
+    vibrate(8);
+
+    // visual feedback
+    tapBtn.classList.add('pressed');
+    const rect = tapBtn.getBoundingClientRect();
+    const x = (e.clientX != null ? e.clientX : rect.left + rect.width / 2);
+    const y = (e.clientY != null ? e.clientY : rect.top + rect.height / 2);
+    const r = document.createElement('span');
+    r.className = 'ripple';
+    const size = 60;
+    r.style.width = r.style.height = size + 'px';
+    r.style.left = (x - rect.left - size / 2) + 'px';
+    r.style.top = (y - rect.top - size / 2) + 'px';
+    tapBtn.appendChild(r);
+    setTimeout(() => r.remove(), 520);
+
+    if (myScore % 5 === 0) {
+      const f = document.createElement('div');
+      f.className = 'floaty';
+      f.textContent = '+' + myScore;
+      f.style.left = x + 'px';
+      f.style.top = (y - 20) + 'px';
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 720);
+    }
+  }
+  function releaseTap() { tapBtn.classList.remove('pressed'); }
+
+  tapBtn.addEventListener('pointerdown', handleTap);
+  tapBtn.addEventListener('pointerup', releaseTap);
+  tapBtn.addEventListener('pointercancel', releaseTap);
+  tapBtn.addEventListener('pointerleave', releaseTap);
+  tapBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  tapBtn.addEventListener('dblclick', (e) => e.preventDefault());
+  // keyboard support for desktop testing
+  window.addEventListener('keydown', (e) => {
+    if (phase === 'game' && (e.code === 'Space' || e.code === 'Enter') && !e.repeat) {
+      e.preventDefault();
+      handleTap({ preventDefault() {}, clientX: null, clientY: null });
+    }
+  });
+
+  /* ---- live scores ---- */
+  function oppScore() {
+    const uid = oppUid();
+    if (!uid || !roomData || !roomData.scores) return 0;
+    return roomData.scores[uid] || 0;
+  }
+
+  function updateTug() {
+    const a = myScore, b = oppScore();
+    const total = a + b;
+    $('g-tug').style.width = (total === 0 ? 50 : Math.max(4, Math.min(96, (a / total) * 100))) + '%';
+  }
+
+  function renderLiveScores() {
+    if (phase !== 'game') return;
+    const o = oppScore();
+    if (o !== lastOppShown) {
+      lastOppShown = o;
+      const el = $('g-opp-score');
+      el.textContent = o;
+      el.classList.add('bump');
+      setTimeout(() => el.classList.remove('bump'), 70);
+    }
+    $('g-opp-name').textContent = oppName();
+    const uid = oppUid();
+    const online = !!(roomData && roomData.presence && uid && roomData.presence[uid]);
+    $('g-opp-status').textContent = online ? 'OPPONENT' : 'OPPONENT (OFFLINE)';
+    updateTug();
+  }
+
+  /* ================================================================
+     10. RESULT
+     ================================================================ */
+  function renderResult() {
+    if (phase !== 'result') return;
+    const me = myScore;
+    const op = oppScore();
+    const secs = matchDuration / 1000;
+
+    $('res-me-name').textContent = myName() + ' (You)';
+    $('res-opp-name').textContent = oppName();
+    $('res-me-score').textContent = me;
+    $('res-opp-score').textContent = op;
+    $('res-me-rate').textContent = (me / secs).toFixed(1) + ' taps/s';
+    $('res-opp-rate').textContent = (op / secs).toFixed(1) + ' taps/s';
+
+    const title = $('res-title');
+    const sub = $('res-sub');
+    const meCard = $('res-me-card');
+    const opCard = $('res-opp-card');
+    meCard.classList.remove('winner');
+    opCard.classList.remove('winner');
+    $('res-me-crown').textContent = '';
+    $('res-opp-crown').textContent = '';
+
+    if (!resultReady) {
+      title.className = 'result-title draw';
+      title.textContent = '…';
+      sub.textContent = 'Counting final taps…';
+    } else if (me > op) {
+      title.className = 'result-title win';
+      title.textContent = 'YOU WIN!';
+      sub.textContent = 'You out-tapped ' + oppName() + ' by ' + (me - op) + '.';
+      meCard.classList.add('winner');
+      $('res-me-crown').textContent = '👑';
+    } else if (op > me) {
+      title.className = 'result-title lose';
+      title.textContent = 'YOU LOSE';
+      sub.textContent = oppName() + ' won by ' + (op - me) + ' taps.';
+      opCard.classList.add('winner');
+      $('res-opp-crown').textContent = '👑';
+    } else {
+      title.className = 'result-title draw';
+      title.textContent = 'DRAW';
+      sub.textContent = 'Perfectly matched. Rematch?';
+    }
+
+    const rematch = $('btn-rematch');
+    const hint = $('res-hint');
+    if (isHost) {
+      rematch.style.display = 'block';
+      rematch.disabled = !resultReady || !(roomData && roomData.guest);
+      hint.textContent = (roomData && roomData.guest) ? '' : 'Opponent left the room.';
+    } else {
+      rematch.style.display = 'none';
+      hint.textContent = 'Waiting for the host to start a rematch…';
+    }
+  }
+
+  $('btn-rematch').addEventListener('click', async () => {
+    if (!isHost || !roomRef) return;
+    const btn = $('btn-rematch');
+    btn.disabled = true;
+    try {
+      await roomRef.update({ status: 'lobby', startAt: null, scores: null });
+      // the room listener moves everyone back to the lobby
+    } catch (e) {
+      toast('Could not start a rematch.');
+      btn.disabled = false;
+    }
+  });
+
+  /* ================================================================
+     11. MISC
+     ================================================================ */
+  // Prevent pinch / double-tap zoom & pull-to-refresh while playing
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('touchmove', (e) => {
+    if (phase === 'game') e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('beforeunload', () => {
+    // best effort cleanup; onDisconnect handles presence
+  });
+
+  setMode('login');
+})();
 </script>
 </body>
 </html>
+
